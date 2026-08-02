@@ -6,6 +6,13 @@ import "encoding/json"
 // API methods slack-cli's e2e tests lean on most. Anything not listed here
 // gets a bare {"ok":true} — good enough for a smoke-test call, and always
 // overridable per test via Handle/QueueResponse/QueueError.
+//
+// Shapes below (field names/nesting, not every optional field) are checked
+// against Slack's published response examples, e.g.
+// https://github.com/slack-ruby/slack-api-ref/tree/master/methods — notably
+// conversations.history/replies always include has_more, and a real 429
+// carries {"ok":false,"error":"ratelimited"} alongside the Retry-After
+// header (see QueueRateLimited), not just a bare status code.
 func (s *Server) defaultResponse(method string, form map[string]string) any {
 	switch method {
 	case "auth.test":
@@ -14,12 +21,21 @@ func (s *Server) defaultResponse(method string, form map[string]string) any {
 			"user": "testbot", "team_id": "T0TEST0001", "user_id": "U0TESTBOT1", "bot_id": "B0TESTBOT1",
 		}
 
-	case "chat.postMessage", "chat.postEphemeral", "chat.meMessage":
+	case "chat.postMessage":
 		ts := s.nextTS()
 		return map[string]any{
 			"ok": true, "channel": form["channel"], "ts": ts,
 			"message": map[string]any{"type": "message", "text": form["text"], "ts": ts, "user": "U0TESTBOT1"},
 		}
+
+	case "chat.postEphemeral":
+		// Genuinely different shape from chat.postMessage: no channel, no
+		// message object, just an opaque message_ts.
+		return map[string]any{"ok": true, "message_ts": s.nextTS()}
+
+	case "chat.meMessage":
+		// Also different from chat.postMessage: no message object.
+		return map[string]any{"ok": true, "channel": form["channel"], "ts": s.nextTS()}
 
 	case "chat.update":
 		return map[string]any{
@@ -70,6 +86,7 @@ func (s *Server) defaultResponse(method string, form map[string]string) any {
 			"messages": []map[string]any{
 				{"type": "message", "ts": ts, "text": "parent message", "user": "U0TESTUSER1"},
 			},
+			"has_more":          false,
 			"response_metadata": map[string]any{"next_cursor": ""},
 		}
 
@@ -79,6 +96,8 @@ func (s *Server) defaultResponse(method string, form map[string]string) any {
 			"messages": []map[string]any{
 				{"type": "message", "ts": s.nextTS(), "text": "hello", "user": "U0TESTUSER1"},
 			},
+			"has_more":          false,
+			"pin_count":         0,
 			"response_metadata": map[string]any{"next_cursor": ""},
 		}
 
@@ -96,6 +115,7 @@ func (s *Server) defaultResponse(method string, form map[string]string) any {
 		return map[string]any{
 			"ok":                true,
 			"members":           []map[string]any{fakeUser("U0TESTUSER1"), fakeUser("U0TESTUSER2")},
+			"cache_ts":          1700000000,
 			"response_metadata": map[string]any{"next_cursor": ""},
 		}
 

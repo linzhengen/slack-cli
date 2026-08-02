@@ -9,7 +9,7 @@
 // conversations.create/list/info, users.info/list/lookupByEmail, the
 // files.getUploadURLExternal/completeUploadExternal pair plus the raw
 // upload POST) have realistic default responses. Anything else defaults to
-// a bare {"ok":true} unless a test overrides it — see Handle, QueueJSON,
+// a bare {"ok":true} unless a test overrides it — see Handle, QueueResponse,
 // QueueError, and QueueRateLimited.
 package slacktest
 
@@ -119,8 +119,9 @@ func (s *Server) QueueError(method, code string) {
 	s.QueueResponse(method, http.StatusOK, map[string]any{"ok": false, "error": code})
 }
 
-// QueueRateLimited queues an HTTP 429 with a Retry-After header for the
-// next call to method, to exercise the client's retry behavior end-to-end.
+// QueueRateLimited queues an HTTP 429 with a Retry-After header and Slack's
+// real {"ok":false,"error":"ratelimited"} body for the next call to method,
+// to exercise the client's retry behavior end-to-end.
 func (s *Server) QueueRateLimited(method string, retryAfterSeconds int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -170,7 +171,7 @@ func (s *Server) handleMethod(w http.ResponseWriter, r *http.Request) {
 	status, body := h(r)
 	if ra, ok := body.(retryAfterMarker); ok {
 		w.Header().Set("Retry-After", strconv.Itoa(int(ra)))
-		w.WriteHeader(status)
+		writeJSON(w, status, map[string]any{"ok": false, "error": "ratelimited"})
 		return
 	}
 	writeJSON(w, status, body)

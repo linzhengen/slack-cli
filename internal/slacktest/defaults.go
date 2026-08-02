@@ -6,6 +6,13 @@ import "encoding/json"
 // API methods slack-cli's e2e tests lean on most. Anything not listed here
 // gets a bare {"ok":true} — good enough for a smoke-test call, and always
 // overridable per test via Handle/QueueResponse/QueueError.
+//
+// Shapes below (field names/nesting, not every optional field) are checked
+// against Slack's published response examples, e.g.
+// https://github.com/slack-ruby/slack-api-ref/tree/master/methods — notably
+// conversations.history/replies always include has_more, and a real 429
+// carries {"ok":false,"error":"ratelimited"} alongside the Retry-After
+// header (see QueueRateLimited), not just a bare status code.
 func (s *Server) defaultResponse(method string, form map[string]string) any {
 	switch method {
 	case "auth.test":
@@ -70,6 +77,7 @@ func (s *Server) defaultResponse(method string, form map[string]string) any {
 			"messages": []map[string]any{
 				{"type": "message", "ts": ts, "text": "parent message", "user": "U0TESTUSER1"},
 			},
+			"has_more":          false,
 			"response_metadata": map[string]any{"next_cursor": ""},
 		}
 
@@ -79,6 +87,8 @@ func (s *Server) defaultResponse(method string, form map[string]string) any {
 			"messages": []map[string]any{
 				{"type": "message", "ts": s.nextTS(), "text": "hello", "user": "U0TESTUSER1"},
 			},
+			"has_more":          false,
+			"pin_count":         0,
 			"response_metadata": map[string]any{"next_cursor": ""},
 		}
 

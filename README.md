@@ -218,8 +218,10 @@ skillsfs.go              go:embed of skills/ (must live at the module root)
 skills/                  agent skill packages (SKILL.md + references/), see "Agent skills"
 internal/slackapi/      generic Web API HTTP client + the method registry
 internal/skillcontent/  reads skill content out of an fs.FS (list/read/traversal guards)
+internal/slacktest/     fake Slack Web API server used by tests (see "Testing")
 internal/config/        auth profile storage (~/.config/slack-cli/config.yaml)
 internal/cliutil/       JSON output + structured error formatting
+e2e/                    black-box tests: build the real binary, exec it as a subprocess
 internal/cli/           cobra command tree:
   root.go                 wires everything together
   auth.go                 profile management commands
@@ -240,6 +242,34 @@ Adding a skill is just adding a new `skills/<name>/SKILL.md` (with YAML
 frontmatter: `name`, `version`, `description`, `metadata`) — no Go changes
 needed; `slack-cli skills list` picks it up on the next build.
 
+## Testing
+
+Two layers, both against a fake Slack Web API server
+(`internal/slacktest`) rather than the real Slack API — no token or
+network access needed to run either:
+
+- **`make test`** — fast, in-process. Unit tests per package, plus
+  end-to-end-style tests in `internal/cli` that call `root.Execute()`
+  directly against an `httptest` server. This is what runs by default and
+  in CI's `test` job.
+- **`make e2e`** — true black-box tests in `e2e/`. `TestMain` runs `go
+  build` once to produce the real `slack-cli` binary, then each test
+  `exec`s it as a subprocess against `internal/slacktest` and asserts on
+  stdout, stderr, and the process exit code exactly as a real caller would
+  see them — the one place that exercises `main.go`, the compiled
+  binary's embedded `skills/` content, and real exit codes, none of which
+  the in-process tests touch. Gated behind an `e2e` build tag so it's
+  opt-in and doesn't slow down `make test`; CI runs it as a separate step.
+
+`internal/slacktest` is a small reusable fake server: it records every
+call it receives (`srv.Calls()`), has realistic default responses for the
+methods used most (`auth.test`, `chat.postMessage`, `conversations.*`,
+`users.*`, the full `files.getUploadURLExternal` → raw upload →
+`files.completeUploadExternal` flow), and lets a test override or queue
+one-shot responses (`srv.Handle`, `srv.QueueResponse`, `srv.QueueError`,
+`srv.QueueRateLimited`) to exercise error handling and retry behavior on
+demand.
+
 ## Development
 
 Requires Go 1.25+ (pinned via the `go` directive in `go.mod`) and
@@ -248,6 +278,7 @@ Requires Go 1.25+ (pinned via the `go` directive in `go.mod`) and
 ```sh
 make build
 make test
+make e2e
 make vet
 make lint
 make fmt-check

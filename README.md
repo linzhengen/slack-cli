@@ -15,6 +15,11 @@ agent that needs a predictable, self-describing tool to act on your behalf.
   structured JSON to stderr (with a non-zero exit code) on failure.
 - **Self-describing**, so an agent can discover what's available without
   reading Slack's docs: `slack-cli api list`, `slack-cli api describe <method>`.
+- **Ships agent skills, installable the same way larksuite/cli's are** —
+  task-oriented guides (messaging, channels, files, admin, ...) embedded in
+  the binary and readable with `slack-cli skills list` / `skills read`, or
+  materialized onto disk for other agent runtimes with `npx skills add`.
+  See [Agent skills](#agent-skills).
 
 ## Install
 
@@ -119,6 +124,62 @@ Errors are printed to stderr as JSON and exit non-zero — Slack API errors
 (missing required params, auth failures, transport errors) use a small
 stable shape: `{"ok":false,"error":"...","method":"..."}`.
 
+## Agent skills
+
+Beyond the API itself, slack-cli ships **agent skills**: task-oriented
+markdown guides — what a task area is for, which commands to reach for,
+which OAuth scopes it needs, worked examples — one per area of the Slack
+API (messaging, channels, files, search, canvases, the AI Assistant
+surface, workflow steps, Enterprise Grid admin). This mirrors
+[larksuite/cli](https://github.com/larksuite/cli)'s skills feature and
+follows the same [Agent Skills](https://github.com/anthropics/skills)
+layout: a `skills/` directory at the repo root, one subdirectory per skill,
+each with a `SKILL.md` (YAML frontmatter + markdown body) and an optional
+`references/` for longer supplementary docs.
+
+There are two ways to get them into an agent, matching lark-cli's two
+install paths:
+
+**1. Zero-install, via the CLI itself.** Skill content is embedded into the
+`slack-cli` binary at build time (`go:embed`), so it's always in sync with
+whatever version is running — no separate install step, no clone of this
+repo on disk. Any agent that can shell out reads skills this way:
+
+```sh
+slack-cli skills list                                   # every skill: name, description, version
+slack-cli skills list slack-messaging                   # ls-style: files under one skill
+slack-cli skills read slack-messaging                   # a skill's SKILL.md, raw markdown
+slack-cli skills read slack-messaging references/blocks.md   # a reference file under a skill
+slack-cli skills read slack-messaging --json             # JSON envelope instead of raw text
+```
+
+**2. Materialized onto disk, for agent runtimes that read skills as files**
+(e.g. Claude Code's `/skill`), using the same convention-based installer
+lark-cli documents — since `skills/` here follows the same layout, it works
+against this repo unmodified:
+
+```sh
+npx skills add linzhengen/slack-cli -y -g
+```
+
+### Available skills
+
+Run `slack-cli skills list` for the live, current list. As of this
+writing:
+
+| Skill | Covers |
+|---|---|
+| `slack-shared` | Auth, output/error format, Slack ID formats, pagination, rate limits, Block Kit basics — read this one first |
+| `slack-messaging` | Send/edit/delete/schedule messages, threads, reactions, pins, bookmarks, reading history |
+| `slack-channels` | Create/archive/rename channels, membership, topic/purpose |
+| `slack-users` | Directory lookup, profiles, presence, user groups |
+| `slack-files` | Uploading and sharing files, listing, public links |
+| `slack-search` | Workspace-wide message/file search (needs a user token) |
+| `slack-canvas` | Slack's rich collaborative documents |
+| `slack-ai-assistant` | Building apps for Slack's native AI Assistant panel |
+| `slack-workflows` | Workflow Builder custom steps and custom functions |
+| `slack-admin` | Enterprise Grid org administration (`admin.*`) |
+
 ## Design for AI agents
 
 - Deterministic, parseable output on both streams — no partial/mixed
@@ -153,13 +214,17 @@ Even methods not in this list can be called via `slack-cli api call
 
 ```
 cmd/slack-cli/          entry point
+skillsfs.go              go:embed of skills/ (must live at the module root)
+skills/                  agent skill packages (SKILL.md + references/), see "Agent skills"
 internal/slackapi/      generic Web API HTTP client + the method registry
+internal/skillcontent/  reads skill content out of an fs.FS (list/read/traversal guards)
 internal/config/        auth profile storage (~/.config/slack-cli/config.yaml)
 internal/cliutil/       JSON output + structured error formatting
 internal/cli/           cobra command tree:
   root.go                 wires everything together
   auth.go                 profile management commands
   api.go                  api call / api list / api describe
+  skills.go                skills list / skills read
   generated.go             builds the whole method-registry command tree
   files.go                 friendly files-upload wrapper
   params.go, call.go       shared flag parsing + Slack call/print logic
@@ -170,6 +235,10 @@ declarative table of `{name, description, params}` per Slack Web API
 method. Adding a method — including brand-new ones Slack ships after this
 was written — is a one-line addition to that table; the command tree,
 help text, and flags follow automatically.
+
+Adding a skill is just adding a new `skills/<name>/SKILL.md` (with YAML
+frontmatter: `name`, `version`, `description`, `metadata`) — no Go changes
+needed; `slack-cli skills list` picks it up on the next build.
 
 ## Development
 

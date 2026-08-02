@@ -43,6 +43,7 @@ SLACK_TOKEN, or pass --token on any command.`,
 	mergeGroup(root, groups, "auth", newAuthCmd())
 	mergeGroup(root, groups, "files", filesGroupWrapper())
 
+	root.AddCommand(newSkillsCmd())
 	root.AddCommand(genTop...)
 
 	return root

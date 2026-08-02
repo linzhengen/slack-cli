@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	skillsfs "github.com/linzhengen/slack-cli"
 	"github.com/linzhengen/slack-cli/internal/cli"
 )
 
@@ -14,6 +15,7 @@ var version = "dev"
 
 func main() {
 	cli.Version = version
+	cli.SetSkillContent(skillsfs.FS)
 
 	root := cli.NewRootCmd()
 	ctx := context.Background()

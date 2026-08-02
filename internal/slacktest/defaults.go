@@ -21,12 +21,21 @@ func (s *Server) defaultResponse(method string, form map[string]string) any {
 			"user": "testbot", "team_id": "T0TEST0001", "user_id": "U0TESTBOT1", "bot_id": "B0TESTBOT1",
 		}
 
-	case "chat.postMessage", "chat.postEphemeral", "chat.meMessage":
+	case "chat.postMessage":
 		ts := s.nextTS()
 		return map[string]any{
 			"ok": true, "channel": form["channel"], "ts": ts,
 			"message": map[string]any{"type": "message", "text": form["text"], "ts": ts, "user": "U0TESTBOT1"},
 		}
+
+	case "chat.postEphemeral":
+		// Genuinely different shape from chat.postMessage: no channel, no
+		// message object, just an opaque message_ts.
+		return map[string]any{"ok": true, "message_ts": s.nextTS()}
+
+	case "chat.meMessage":
+		// Also different from chat.postMessage: no message object.
+		return map[string]any{"ok": true, "channel": form["channel"], "ts": s.nextTS()}
 
 	case "chat.update":
 		return map[string]any{
@@ -106,6 +115,7 @@ func (s *Server) defaultResponse(method string, form map[string]string) any {
 		return map[string]any{
 			"ok":                true,
 			"members":           []map[string]any{fakeUser("U0TESTUSER1"), fakeUser("U0TESTUSER2")},
+			"cache_ts":          1700000000,
 			"response_metadata": map[string]any{"next_cursor": ""},
 		}
 

@@ -76,6 +76,60 @@ func TestDefaultResponses_HistoryAndRepliesIncludeHasMore(t *testing.T) {
 	}
 }
 
+// TestDefaultResponses_PostEphemeralShape locks in that chat.postEphemeral
+// has a genuinely different response shape from chat.postMessage: just
+// {ok, message_ts} — no channel, no ts, no message object. A mock that
+// reused chat.postMessage's shape here would validate code that reads
+// resp.ts/resp.channel from a postEphemeral call, which the real API
+// doesn't return.
+func TestDefaultResponses_PostEphemeralShape(t *testing.T) {
+	srv := New()
+	defer srv.Close()
+
+	resp := post(t, srv, "chat.postEphemeral", url.Values{"channel": {"C123"}, "user": {"U1"}, "text": {"hi"}})
+	if resp["ok"] != true {
+		t.Fatalf("unexpected response: %v", resp)
+	}
+	if _, ok := resp["message_ts"].(string); !ok {
+		t.Errorf("expected a string message_ts, got: %v", resp)
+	}
+	for _, unexpected := range []string{"channel", "ts", "message"} {
+		if _, present := resp[unexpected]; present {
+			t.Errorf("chat.postEphemeral response should not include %q (real Slack doesn't return it): %v", unexpected, resp)
+		}
+	}
+}
+
+// TestDefaultResponses_MeMessageShape locks in that chat.meMessage returns
+// {ok, channel, ts} with no message object, unlike chat.postMessage.
+func TestDefaultResponses_MeMessageShape(t *testing.T) {
+	srv := New()
+	defer srv.Close()
+
+	resp := post(t, srv, "chat.meMessage", url.Values{"channel": {"C123"}, "text": {"waves"}})
+	if resp["ok"] != true || resp["channel"] != "C123" {
+		t.Fatalf("unexpected response: %v", resp)
+	}
+	if _, ok := resp["ts"].(string); !ok {
+		t.Errorf("expected a string ts, got: %v", resp)
+	}
+	if _, present := resp["message"]; present {
+		t.Errorf("chat.meMessage response should not include a message object: %v", resp)
+	}
+}
+
+// TestDefaultResponses_UsersListIncludesCacheTS locks in cache_ts, a
+// top-level field real Slack always includes in users.list responses.
+func TestDefaultResponses_UsersListIncludesCacheTS(t *testing.T) {
+	srv := New()
+	defer srv.Close()
+
+	resp := post(t, srv, "users.list", nil)
+	if _, ok := resp["cache_ts"]; !ok {
+		t.Errorf("users.list response missing cache_ts: %v", resp)
+	}
+}
+
 func TestCallRecording(t *testing.T) {
 	srv := New()
 	defer srv.Close()

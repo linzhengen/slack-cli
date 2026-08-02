@@ -1,7 +1,7 @@
 BINARY := slack-cli
 VERSION ?= dev
 
-.PHONY: build test vet fmt-check install
+.PHONY: build test vet lint fmt-check install
 
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o bin/$(BINARY) ./cmd/slack-cli
@@ -14,6 +14,9 @@ test:
 
 vet:
 	go vet ./...
+
+lint:
+	golangci-lint run ./...
 
 fmt-check:
 	@test -z "$$(gofmt -l .)" || (echo "gofmt needs to be run on:"; gofmt -l .; exit 1)

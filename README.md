@@ -173,9 +173,13 @@ help text, and flags follow automatically.
 
 ## Development
 
+Requires Go 1.25+ (pinned via the `go` directive in `go.mod`) and
+[golangci-lint](https://golangci-lint.run/) for `make lint`.
+
 ```sh
 make build
 make test
 make vet
+make lint
 make fmt-check
 ```

@@ -49,7 +49,7 @@ want to get a local file into Slack in one step.`,
 			if err != nil {
 				return fail(cmd, "files.upload", err.Error(), nil)
 			}
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 
 			info, err := f.Stat()
 			if err != nil {

@@ -28,7 +28,7 @@ func TestE2E_GeneratedCommand_Success(t *testing.T) {
 		if r.URL.Path != "/chat.postMessage" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		w.Write([]byte(`{"ok":true,"ts":"1.1","channel":"C1"}`))
+		_, _ = w.Write([]byte(`{"ok":true,"ts":"1.1","channel":"C1"}`))
 	}))
 	defer srv.Close()
 
@@ -65,7 +65,7 @@ func TestE2E_APICall_UnknownMethod(t *testing.T) {
 		if r.URL.Path != "/some.newMethod" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		w.Write([]byte(`{"ok":true,"custom":"field"}`))
+		_, _ = w.Write([]byte(`{"ok":true,"custom":"field"}`))
 	}))
 	defer srv.Close()
 
@@ -80,7 +80,7 @@ func TestE2E_APICall_UnknownMethod(t *testing.T) {
 
 func TestE2E_APIError_SurfacesSlackBody(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"ok":false,"error":"channel_not_found"}`))
+		_, _ = w.Write([]byte(`{"ok":false,"error":"channel_not_found"}`))
 	}))
 	defer srv.Close()
 
@@ -98,7 +98,7 @@ func TestE2E_AdminNestedGroup(t *testing.T) {
 		if r.URL.Path != "/admin.users.session.reset" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer srv.Close()
 
@@ -113,7 +113,7 @@ func TestE2E_AuthWhoami(t *testing.T) {
 		if r.URL.Path != "/auth.test" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		w.Write([]byte(`{"ok":true,"user":"tester"}`))
+		_, _ = w.Write([]byte(`{"ok":true,"user":"tester"}`))
 	}))
 	defer srv.Close()
 

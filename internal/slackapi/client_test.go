@@ -23,7 +23,7 @@ func TestCall_Success(t *testing.T) {
 			t.Fatalf("unexpected channel %q", r.PostForm.Get("channel"))
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"ok":true,"ts":"123.456","channel":"C123"}`))
+		_, _ = w.Write([]byte(`{"ok":true,"ts":"123.456","channel":"C123"}`))
 	}))
 	defer srv.Close()
 
@@ -40,7 +40,7 @@ func TestCall_Success(t *testing.T) {
 func TestCall_APIError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"ok":false,"error":"channel_not_found"}`))
+		_, _ = w.Write([]byte(`{"ok":false,"error":"channel_not_found"}`))
 	}))
 	defer srv.Close()
 
@@ -68,7 +68,7 @@ func TestCall_RetriesOn429(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer srv.Close()
 
@@ -88,7 +88,7 @@ func TestCall_RetriesOn429(t *testing.T) {
 func TestCall_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("boom"))
+		_, _ = w.Write([]byte("boom"))
 	}))
 	defer srv.Close()
 

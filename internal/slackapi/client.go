@@ -108,7 +108,7 @@ func (c *Client) Call(ctx context.Context, method string, params map[string]stri
 		}
 
 		body, readErr := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if readErr != nil {
 			return nil, readErr
 		}
@@ -185,7 +185,7 @@ func (c *Client) UploadFile(ctx context.Context, uploadURL string, filename stri
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &HTTPError{Method: "files.upload(raw)", StatusCode: resp.StatusCode, Body: string(body)}
